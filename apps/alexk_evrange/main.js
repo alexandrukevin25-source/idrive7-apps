@@ -106,7 +106,11 @@ mgu.run({
         /* ---------- the layers ---------- */
         let sentGeom = '', sentVals = '';
         const shown = () => !!settings.get('enabled');
-        function geom() { return Wd.geometry(settings.get('dx'), settings.get('dy'), settings.get('size')); }
+        function geom() {
+            return Wd.geometry(settings.get('dx'), settings.get('dy'), settings.get('size'),
+                settings.get('tdx'), settings.get('tdy'), settings.get('tsize'));
+        }
+        const right = () => (settings.get('textAlign') === 'left' ? 0 : 1);
 
         function createLayers() {
             sentGeom = ''; sentVals = '';
@@ -123,12 +127,13 @@ mgu.run({
             if (!cluster.up) return;
             const g = geom();
             const vt = shown() && settings.get('showText') ? 1 : 0, vg = shown() && settings.get('showGauge') ? 1 : 0;
-            const gk = JSON.stringify([g, vt, vg]);
+            const gk = JSON.stringify([g, vt, vg, right()]);
             if (force || gk !== sentGeom) {
                 cluster.send(Object.assign({ op: 'set', ref: REF_T, visible: vt }, g.text));
                 cluster.send(Object.assign({ op: 'set', ref: REF_G, visible: vg }, g.gauge));
                 cluster.send({ op: 'uniform', ref: REF_T, name: 'u_aspect', v: String(g.text.w / g.text.h) });
                 cluster.send({ op: 'uniform', ref: REF_T, name: 'u_px', v: String(1 / g.text.h) });
+                cluster.send({ op: 'uniform', ref: REF_T, name: 'u_right', v: String(right()) });
                 cluster.send({ op: 'uniform', ref: REF_G, name: 'u_aspect', v: String(g.gauge.w / g.gauge.h) });
                 cluster.send({ op: 'uniform', ref: REF_G, name: 'u_px', v: String(1 / g.gauge.h) });
                 sentGeom = gk;
