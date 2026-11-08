@@ -73,21 +73,34 @@ mgu.run({
 
         /* ---------- the data (read, never written) ---------- */
         let lastT = null, changedAt = 0;
-        const data = { km: null, pct: null, fresh: false, test: false };
+        const data = { km: null, pct: null, fresh: false, test: false, why: 'starting', raw: null };
+        const isNum = (v) => typeof v === 'number' && isFinite(v);
         function readData() {
-            if (settings.get('testValues')) { Object.assign(data, { km: 37, pct: 60, fresh: true, test: true }); return; }
-            data.test = false;
-            try {
-                const d = JSON.parse(fs.readFileSync(EDRIVE_FILE, 'utf8'));
-                // fresh = the file's own stamp keeps changing (the clock may jump after start-up,
-                // so it is watched on the steady clock, not compared with now)
-                if (d && d.t !== lastT) { lastT = d.t; changedAt = mono(); }
-                data.fresh = changedAt > 0 && mono() - changedAt < STALE_MS;
-                data.km = data.fresh && typeof d.rangeKm === 'number' && isFinite(d.rangeKm) ? d.rangeKm : null;
-                data.pct = data.fresh && typeof d.soc === 'number' && isFinite(d.soc) ? d.soc : null;
-            } catch (e) {
-                data.fresh = false; data.km = null; data.pct = null;
+            if (settings.get('testValues')) {
+                Object.assign(data, { km: 37, pct: 60, fresh: true, test: true, why: 'test values', raw: null });
+                return;
             }
+            data.test = false;
+            let d = null;
+            try {
+                d = JSON.parse(fs.readFileSync(EDRIVE_FILE, 'utf8'));
+            } catch (e) {
+                Object.assign(data, { km: null, pct: null, fresh: false, raw: null,
+                    why: e.code === 'ENOENT' ? 'file missing: eDrive is not writing it (demo mode, or not running)'
+                        : e.code === 'EACCES' ? 'file not readable by this app'
+                        : e.name === 'SyntaxError' ? 'file unreadable' : String(e.code || e.message) });
+                return;
+            }
+            data.raw = d;
+            // fresh = the file's own stamp keeps changing (the clock may jump after start-up,
+            // so it is watched on the steady clock, not compared with now)
+            if (d && d.t !== lastT) { lastT = d.t; changedAt = mono(); }
+            data.fresh = changedAt > 0 && mono() - changedAt < STALE_MS;
+            if (!data.fresh) { data.km = null; data.pct = null; data.why = 'file is not being updated'; return; }
+            data.km = isNum(d.rangeKm) ? d.rangeKm : null;
+            data.pct = isNum(d.soc) ? d.soc : null;
+            data.why = data.km === null && data.pct === null ? 'eDrive has no charge reading yet'
+                : data.km === null ? 'eDrive has no range yet' : data.pct === null ? 'eDrive has no charge yet' : 'ok';
         }
 
         /* ---------- the layers ---------- */
@@ -148,14 +161,16 @@ mgu.run({
             };
             row(120, 'Cluster renderer', cluster.up ? 'Connected' : 'Not found: install cluster-render from the Store',
                 cluster.up ? GO : t.warn);
-            row(190, 'eDrive data', data.fresh && data.km !== null
-                ? data.km + ' km  /  ' + (data.pct === null ? '-' : data.pct) + ' %'
-                : 'None: the eDrive app must be installed', data.fresh ? GO : t.warn);
+            const good = data.why === 'ok' || data.test;
+            row(190, 'eDrive data', good ? data.km + ' km  /  ' + data.pct + ' %' : data.why, good ? GO : t.warn);
+            if (data.raw && !data.test) {
+                row(235, 'File says', 'soc ' + data.raw.soc + '   range ' + data.raw.rangeKm + '   kw ' + data.raw.kw, t.dim);
+            }
             const g = geom();
-            row(260, 'Widget', shown() ? 'On the cluster at ' + g.gauge.x + ', ' + g.gauge.y : 'Hidden (see Settings)',
+            row(285, 'Widget', shown() ? 'On the cluster at ' + g.gauge.x + ', ' + g.gauge.y : 'Hidden (see Settings)',
                 shown() ? t.text : t.dim);
-            if (cluster.event) row(330, 'Renderer says', String(cluster.event).slice(0, 70), t.dim);
-            if (!cluster.up && cluster.err) row(330, 'Socket', String(cluster.err), t.dim);
+            if (cluster.event) row(345, 'Renderer says', String(cluster.event).slice(0, 70), t.dim);
+            if (!cluster.up && cluster.err) row(345, 'Socket', String(cluster.err), t.dim);
             cv.text('Settings: move, resize and turn parts on and off. Use Show test values to place it.',
                 80, 470, 28, t.dim, { font: 'label' });
             return ctx.ui.image('MAIN_GFX', cv);
