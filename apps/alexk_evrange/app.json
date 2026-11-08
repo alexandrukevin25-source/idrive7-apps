@@ -2,10 +2,9 @@
   "id": "alexk_evrange",
   "title": "EV Range Cluster",
   "description": "Electric range and charge on the instrument cluster, with a gauge band like the original indicator. Needs cluster-render and the eDrive app.",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "vendor": "custom",
   "loggingId": "OAK1",
-  "iconGlyph": "battery",
   "signals": {},
   "screens": [
     {
@@ -320,6 +319,26 @@
         [
           "standard",
           "Standard"
+        ]
+      ]
+    },
+    {
+      "key": "clusterSlot",
+      "label": "Cluster slot (try 0x201 / 0x202 if the right widgets disappear)",
+      "type": "choice",
+      "default": "0x203",
+      "options": [
+        [
+          "0x203",
+          "0x203 (normal, hides the stock right widgets)"
+        ],
+        [
+          "0x201",
+          "0x201 (test: needs cluster-render 0.3.108)"
+        ],
+        [
+          "0x202",
+          "0x202 (test: needs cluster-render 0.3.108)"
         ]
       ]
     },
