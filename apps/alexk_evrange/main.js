@@ -23,6 +23,8 @@ const STALE_MS = 5000;
 const W = 1600, H = 520;
 const GO = '#2fd27a';
 
+const SLOTS = { '0x203': 'panel', '0x201': 'panel201', '0x202': 'panel202' };
+
 const mono = () => { const h = process.hrtime(); return h[0] * 1000 + h[1] / 1e6; };
 
 /** cluster-render client: JSON frames over the unix socket, reconnects, re-sends its layers */
@@ -69,6 +71,7 @@ class Cluster {
 mgu.run({
     async start(ctx) {
         const { settings, log } = ctx;
+        const targetName = () => SLOTS[settings.get('clusterSlot')] || 'panel';
         const REF_T = 1, REF_G = 2;
 
         /* ---------- the data (read, never written) ---------- */
@@ -106,6 +109,8 @@ mgu.run({
         /* ---------- the layers ---------- */
         let sentGeom = '', sentVals = '';
         const shown = () => !!settings.get('enabled');
+        // a hidden layer never asks for the slot, so with no data the stock cluster stays untouched
+        const wanted = (part) => shown() && settings.get(part) && (data.fresh || data.test);
         function geom() {
             return Wd.geometry(settings.get('dx'), settings.get('dy'), settings.get('size'),
                 settings.get('tdx'), settings.get('tdy'), settings.get('tsize'));
@@ -116,17 +121,17 @@ mgu.run({
             sentGeom = ''; sentVals = '';
             cluster.send({ op: 'hello', app: 'alexk_evrange', proto: 1 });
             const g = geom();
-            cluster.send(Object.assign({ op: 'layer', ref: REF_T, target: 'panel', kind: 'effect', class: 'overlay',
-                visible: shown() && settings.get('showText') ? 1 : 0, fs: Wd.TEXT_FS }, g.text));
-            cluster.send(Object.assign({ op: 'layer', ref: REF_G, target: 'panel', kind: 'effect', class: 'overlay',
-                visible: shown() && settings.get('showGauge') ? 1 : 0, fs: Wd.GAUGE_FS }, g.gauge));
+            cluster.send(Object.assign({ op: 'layer', ref: REF_T, target: targetName(), kind: 'effect', class: 'overlay',
+                visible: wanted('showText') ? 1 : 0, fs: Wd.TEXT_FS }, g.text));
+            cluster.send(Object.assign({ op: 'layer', ref: REF_G, target: targetName(), kind: 'effect', class: 'overlay',
+                visible: wanted('showGauge') ? 1 : 0, fs: Wd.GAUGE_FS }, g.gauge));
             apply(true);
         }
 
         function apply(force) {
             if (!cluster.up) return;
             const g = geom();
-            const vt = shown() && settings.get('showText') ? 1 : 0, vg = shown() && settings.get('showGauge') ? 1 : 0;
+            const vt = wanted('showText') ? 1 : 0, vg = wanted('showGauge') ? 1 : 0;
             const gk = JSON.stringify([g, vt, vg, right()]);
             if (force || gk !== sentGeom) {
                 cluster.send(Object.assign({ op: 'set', ref: REF_T, visible: vt }, g.text));
@@ -149,11 +154,14 @@ mgu.run({
             }
         }
 
-        const cluster = new Cluster(log, createLayers);
+        let cluster = new Cluster(log, createLayers);
         cluster.start();
         readData();
         setInterval(() => { readData(); apply(false); }, 1000);
-        settings.onChange(() => { readData(); apply(false); });
+        settings.onChange((k) => {
+            if (k === 'clusterSlot') { cluster.stop(); cluster = new Cluster(log, createLayers); cluster.start(); return; }
+            readData(); apply(false);
+        });
 
         /* ---------- the screen ---------- */
         ctx.loop('MAIN', 4, () => {
@@ -172,12 +180,13 @@ mgu.run({
                 row(235, 'File says', 'soc ' + data.raw.soc + '   range ' + data.raw.rangeKm + '   kw ' + data.raw.kw, t.dim);
             }
             const g = geom();
-            row(285, 'Widget', shown() ? 'On the cluster at ' + g.gauge.x + ', ' + g.gauge.y : 'Hidden (see Settings)',
+            row(285, 'Slot', targetName() + ' (' + settings.get('clusterSlot') + ')', t.dim);
+            row(315, 'Widget', shown() ? 'On the cluster at ' + g.gauge.x + ', ' + g.gauge.y : 'Hidden (see Settings)',
                 shown() ? t.text : t.dim);
-            if (cluster.event) row(345, 'Renderer says', String(cluster.event).slice(0, 70), t.dim);
-            if (!cluster.up && cluster.err) row(345, 'Socket', String(cluster.err), t.dim);
+            if (cluster.event) row(375, 'Renderer says', String(cluster.event).slice(0, 70), t.dim);
+            if (!cluster.up && cluster.err) row(375, 'Socket', String(cluster.err), t.dim);
             cv.text('Settings: move, resize and turn parts on and off. Use Show test values to place it.',
-                80, 470, 28, t.dim, { font: 'label' });
+                80, 480, 28, t.dim, { font: 'label' });
             return ctx.ui.image('MAIN_GFX', cv);
         });
     },
