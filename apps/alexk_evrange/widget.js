@@ -14,6 +14,7 @@ const TEXT_FS = [
   'uniform vec4 u_pc;',
   'uniform float u_aspect;',
   'uniform float u_px;',
+  'uniform float u_right;',   // 1: the text ends at the strip's right edge
   'float mask(float d) {',
   '  if (d < 0.5) return 63.0;',
   '  if (d < 1.5) return 6.0;',
@@ -74,7 +75,6 @@ const TEXT_FS = [
   '  return 1.0 - smoothstep(w - u_px, w + u_px, d);',
   '}',
   'void main() {',
-  '  vec2 p = vec2(v_uv.x * u_aspect, v_uv.y);',
   '  vec3 cKm = vec3(0.25, 0.90, 0.45);',
   '  vec3 cPc = vec3(0.35, 0.75, 1.00);',
   '  vec3 cDim = vec3(0.80, 0.80, 0.80);',
@@ -84,6 +84,9 @@ const TEXT_FS = [
   '  float px0 = sx + 0.35 + 0.12;',
   '  float wPc = u_pc.w * 0.62;',
   '  float qx = px0 + wPc + 0.05;',
+  '  float total = qx + 0.40;',
+  '  float shift = max(u_aspect - total, 0.0) * u_right;',
+  '  vec2 p = vec2(v_uv.x * u_aspect - shift, v_uv.y);',
   '  float aKm = numAt(p, 0.0, u_km);',
   '  float aPc = numAt(p, px0, u_pc);',
   '  float aU = 0.0;',
@@ -234,13 +237,18 @@ const GAUGE_FS = gaugeShader();
 const CW = 1920, CH = 720;      // the cluster, target "panel"
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
-/** where the two layers go for the settings (dx, dy in px, size in %) */
-function geometry(dx, dy, sizePct) {
-    const s = sizePct / 100;
+/**
+ * Where the two layers go. The whole widget (dx, dy px; size %) is anchored at the cluster's right edge;
+ * the text has its own offset (tdx, tdy px) and size (tsize %) relative to the gauge's bottom.
+ */
+function geometry(dx, dy, sizePct, tdx, tdy, tsizePct) {
+    const s = sizePct / 100, ts = (tsizePct || 100) / 100;
     const gw = Math.round(265 * s), gh = Math.round(286 * s);
     const gx = clamp(CW - gw + dx, 0, CW - gw), gy = clamp(400 + dy, 0, CH - gh);
-    const tw = Math.round(215 * s), th = Math.round(38 * s);
-    const tx = clamp(gx + Math.round(35 * s), 0, CW - tw), ty = clamp(gy + Math.round(247 * s), 0, CH - th);
+    const tw = Math.round(215 * s * ts), th = Math.round(38 * s * ts);
+    // the strip's right edge starts 15 px inside the gauge's right edge
+    const tx = clamp(gx + gw - Math.round(15 * s) - tw + (tdx || 0), 0, CW - tw);
+    const ty = clamp(gy + Math.round(247 * s) + (tdy || 0), 0, CH - th);
     return { gauge: { x: gx, y: gy, w: gw, h: gh }, text: { x: tx, y: ty, w: tw, h: th } };
 }
 
