@@ -1,0 +1,652 @@
+{
+  "id": "alexk_evrange",
+  "title": "EV Range Cluster",
+  "description": "Electric range and charge on the instrument cluster, read from the car and calculated as eDrive does it (learned, temperature, climate, engine-start charge). No eDrive needed. Needs cluster-render.",
+  "version": "0.6.2",
+  "startType": "autostart",
+  "vendor": "custom",
+  "loggingId": "OAK1",
+  "signals": {
+    "com.harman.infotainment.systemfunctions.tasu.tasu.InternalTasu": {
+      "_instances": "SystemFunctionsInternalTasuInst1",
+      "_methods": [
+        "sendTasuRequest"
+      ],
+      "_broadcasts": [
+        "sendTasuResponse"
+      ]
+    },
+    "de.bmw.infrastructure.EnvironmentalInformation": {
+      "ExteriorTemperature": "s"
+    },
+    "de.bmw.infotainment.vehicle.Vehicle2": {
+      "statusCarSpeed2": "rs"
+    },
+    "de.bmw.infotainment.vehicle.CDS": {
+      "statusEngineSpeed2": "rs"
+    },
+    "de.bmw.infotainment.climate.climatemaster.ClimateMaster": {
+      "statusClimateSystemOn": "rs",
+      "statusAirCondAC": "rs"
+    },
+    "de.bmw.infotainment.climate.Climate2": {
+      "statusACFront": "rs",
+      "statusAirConditionDRStatus": "rs"
+    },
+    "de.bmw.infotainment.climate.Climate": {
+      "statusSeatHeatingDR": "rs",
+      "statusSeatHeatingPS": "rs",
+      "statusSeatHeatingDRR": "rs",
+      "statusSeatHeatingPSR": "rs"
+    },
+    "de.bmw.body.steeringwheelcomfort.SteeringWheelClimate": {
+      "heatingState": "rs"
+    },
+    "de.bmw.infotainment.drivingexcitement.FES": {
+      "statusFESVehicleDynamicSwitchHMI": "rs",
+      "statusSwitchDriveDynamicSport2": "rs"
+    }
+  },
+  "screens": [
+    {
+      "name": "MAIN",
+      "kind": "canvas",
+      "title": "EV Range Cluster",
+      "buttons": [
+        [
+          "BTN_SETTINGS",
+          "Settings"
+        ]
+      ]
+    }
+  ],
+  "settings": [
+    {
+      "key": "fullRange",
+      "label": "Electric range when full, 20 °C",
+      "type": "number",
+      "unit": "km",
+      "default": 50,
+      "steps": [
+        30,
+        35,
+        40,
+        45,
+        50,
+        55,
+        60,
+        65,
+        70,
+        80,
+        90,
+        100
+      ]
+    },
+    {
+      "key": "reserve",
+      "label": "Engine starts at",
+      "type": "choice",
+      "default": "auto",
+      "options": [
+        [
+          "auto",
+          "Auto (learned)"
+        ],
+        [
+          "0",
+          "0 %"
+        ],
+        [
+          "4",
+          "4 %"
+        ],
+        [
+          "5",
+          "5 %"
+        ],
+        [
+          "6",
+          "6 %"
+        ],
+        [
+          "7",
+          "7 %"
+        ],
+        [
+          "8",
+          "8 %"
+        ],
+        [
+          "9",
+          "9 %"
+        ],
+        [
+          "10",
+          "10 %"
+        ],
+        [
+          "12",
+          "12 %"
+        ],
+        [
+          "15",
+          "15 %"
+        ]
+      ]
+    },
+    {
+      "key": "designKwh",
+      "label": "Battery size when new (gross)",
+      "type": "number",
+      "unit": "kWh",
+      "default": 12,
+      "steps": [
+        7.6,
+        9.2,
+        10.4,
+        11.2,
+        12,
+        14.1,
+        17.7,
+        19.4,
+        24,
+        25.7,
+        42.2
+      ]
+    },
+    {
+      "key": "poll",
+      "label": "Read charge every",
+      "type": "number",
+      "unit": "s",
+      "default": 15,
+      "steps": [
+        5,
+        10,
+        15,
+        30,
+        60
+      ]
+    },
+    {
+      "key": "enabled",
+      "label": "Show on the instrument cluster",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "autoRun",
+      "label": "Start with the car",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "modeAdaptive",
+      "label": "Show in: Adaptive",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "modeHybrid",
+      "label": "Show in: Hybrid",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "modeHybridEco",
+      "label": "Show in: Hybrid Eco",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "modeElectric",
+      "label": "Show in: Electric",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "modeElectricInd",
+      "label": "Show in: Electric Individual",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "modeSport",
+      "label": "Show in: Sport",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "modeSportPlus",
+      "label": "Show in: Sport Plus",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "modeXtraBoost",
+      "label": "Show in: XtraBoost",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "modeSportInd",
+      "label": "Show in: Sport Individual",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "modeOther",
+      "label": "Show in: Other modes (and while the mode is not known)",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "showGauge",
+      "label": "Gauge band",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "showText",
+      "label": "Range and charge text",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "dx",
+      "label": "Move left / right",
+      "type": "number",
+      "unit": "px",
+      "default": 0,
+      "steps": [
+        -200,
+        -190,
+        -180,
+        -170,
+        -160,
+        -150,
+        -140,
+        -130,
+        -120,
+        -110,
+        -100,
+        -90,
+        -80,
+        -70,
+        -60,
+        -50,
+        -40,
+        -30,
+        -20,
+        -10,
+        0,
+        10,
+        20,
+        30,
+        40,
+        50,
+        60,
+        70,
+        80,
+        90,
+        100
+      ]
+    },
+    {
+      "key": "dy",
+      "label": "Move up / down",
+      "type": "number",
+      "unit": "px",
+      "default": 0,
+      "steps": [
+        -300,
+        -290,
+        -280,
+        -270,
+        -260,
+        -250,
+        -240,
+        -230,
+        -220,
+        -210,
+        -200,
+        -190,
+        -180,
+        -170,
+        -160,
+        -150,
+        -140,
+        -130,
+        -120,
+        -110,
+        -100,
+        -90,
+        -80,
+        -70,
+        -60,
+        -50,
+        -40,
+        -30,
+        -20,
+        -10,
+        0,
+        10,
+        20,
+        30,
+        40,
+        50,
+        60
+      ]
+    },
+    {
+      "key": "size",
+      "label": "Size",
+      "type": "number",
+      "unit": "%",
+      "default": 100,
+      "steps": [
+        70,
+        80,
+        90,
+        100,
+        110,
+        120,
+        130
+      ]
+    },
+    {
+      "key": "textAlign",
+      "label": "Text: align",
+      "type": "choice",
+      "default": "right",
+      "options": [
+        [
+          "right",
+          "To the right (ends at the edge)"
+        ],
+        [
+          "left",
+          "To the left"
+        ]
+      ]
+    },
+    {
+      "key": "tdx",
+      "label": "Text: move left / right",
+      "type": "number",
+      "unit": "px",
+      "default": 0,
+      "steps": [
+        -200,
+        -195,
+        -190,
+        -185,
+        -180,
+        -175,
+        -170,
+        -165,
+        -160,
+        -155,
+        -150,
+        -145,
+        -140,
+        -135,
+        -130,
+        -125,
+        -120,
+        -115,
+        -110,
+        -105,
+        -100,
+        -95,
+        -90,
+        -85,
+        -80,
+        -75,
+        -70,
+        -65,
+        -60,
+        -55,
+        -50,
+        -45,
+        -40,
+        -35,
+        -30,
+        -25,
+        -20,
+        -15,
+        -10,
+        -5,
+        0,
+        5,
+        10,
+        15,
+        20,
+        25,
+        30,
+        35,
+        40,
+        45,
+        50,
+        55,
+        60,
+        65,
+        70,
+        75,
+        80,
+        85,
+        90,
+        95,
+        100
+      ]
+    },
+    {
+      "key": "tdy",
+      "label": "Text: move up / down",
+      "type": "number",
+      "unit": "px",
+      "default": 0,
+      "steps": [
+        -60,
+        -55,
+        -50,
+        -45,
+        -40,
+        -35,
+        -30,
+        -25,
+        -20,
+        -15,
+        -10,
+        -5,
+        0,
+        5,
+        10,
+        15,
+        20,
+        25,
+        30,
+        35,
+        40,
+        45,
+        50,
+        55,
+        60
+      ]
+    },
+    {
+      "key": "tsize",
+      "label": "Text: size",
+      "type": "number",
+      "unit": "%",
+      "default": 100,
+      "steps": [
+        60,
+        70,
+        80,
+        90,
+        100,
+        110,
+        120
+      ]
+    },
+    {
+      "key": "testValues",
+      "label": "Show test values (to place it)",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "theme",
+      "label": "Colour theme",
+      "type": "choice",
+      "default": "m_fuel",
+      "options": [
+        [
+          "m_fuel",
+          "M Classic (like the M fuel gauge)"
+        ],
+        [
+          "m_red",
+          "M Red"
+        ],
+        [
+          "m_tricolour",
+          "M Tricolour"
+        ],
+        [
+          "ice",
+          "Ice White"
+        ],
+        [
+          "amber",
+          "Night Amber"
+        ]
+      ]
+    },
+    {
+      "key": "layout",
+      "label": "Screen layout",
+      "type": "choice",
+      "default": "full",
+      "options": [
+        [
+          "full",
+          "Full screen"
+        ],
+        [
+          "standard",
+          "Standard"
+        ]
+      ]
+    },
+    {
+      "key": "clusterSlot",
+      "label": "Where to draw",
+      "type": "choice",
+      "default": "0x203",
+      "options": [
+        [
+          "0x203",
+          "Whole cluster 0x203 (hides the stock right widgets)"
+        ],
+        [
+          "map",
+          "Centre / map slot (set Central display area to Map view)"
+        ],
+        [
+          "0x201",
+          "0x201 (test)"
+        ],
+        [
+          "0x202",
+          "0x202 (test)"
+        ]
+      ]
+    },
+    {
+      "key": "renderer",
+      "label": "Renderer",
+      "type": "choice",
+      "default": "auto",
+      "options": [
+        [
+          "auto",
+          "GPU 60 fps (default)"
+        ],
+        [
+          "software",
+          "Software"
+        ]
+      ]
+    },
+    {
+      "key": "demo",
+      "label": "Demo data",
+      "type": "choice",
+      "default": "off",
+      "options": [
+        [
+          "auto",
+          "Auto"
+        ],
+        [
+          "on",
+          "Always"
+        ],
+        [
+          "off",
+          "Never"
+        ]
+      ]
+    }
+  ],
+  "config": {
+    "battery": {
+      "ecu": 7,
+      "soc": [
+        {
+          "did": "DDBC",
+          "bytes": 2,
+          "at": 0,
+          "factor": 0.1,
+          "offset": 0,
+          "min": 0,
+          "max": 100
+        }
+      ],
+      "soh": [
+        {
+          "did": "DD7B",
+          "bytes": 1,
+          "at": 0,
+          "factor": 1,
+          "offset": 0,
+          "min": 40,
+          "max": 110
+        },
+        {
+          "did": "6335",
+          "bytes": 1,
+          "at": 0,
+          "factor": 1,
+          "offset": 0,
+          "min": 40,
+          "max": 110
+        }
+      ]
+    },
+    "scaling": {
+      "ambient": {
+        "factor": 0.5,
+        "offset": -40,
+        "invalid": 255
+      },
+      "rpm": {
+        "factor": 0.25,
+        "offset": 0,
+        "invalid": 65535
+      }
+    }
+  }
+}
